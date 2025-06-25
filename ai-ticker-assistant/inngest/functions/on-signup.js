@@ -1,6 +1,7 @@
 import {inngest} from "../client"
 import User from "../../models/user-model"
 import { NonRetriableError } from "inngest"
+import { sendMail } from "../../utils/nodemailer"
 
 //fn for triggering sending mail to user when signedup
 export const onUserSignup = inngest.createFunction(
