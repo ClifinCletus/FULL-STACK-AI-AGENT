@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({ //may upgrade the schema as needed
     password: {
         type: String,
         required: true,
+        select:false,
     },
     role:{
         type:String,
