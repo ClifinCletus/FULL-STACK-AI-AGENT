@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
-import User from "../models/user-model";
+import User from "../models/user-model.js";
 import { inngest } from "../inngest";
-import { doHash, doHashValidation } from "../utils/hashing";
+import { doHash, doHashValidation } from "../utils/hashing.js";
 import {
   signupSchema,
   loginSchema,
