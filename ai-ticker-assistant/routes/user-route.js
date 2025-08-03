@@ -2,7 +2,7 @@ import express from "express"
 import { getUsers, login, logout, signup, updateUser } from "../controllers/user.js"
 const router = express.Router()
 
-import { authenticate } from "../middlewares/auth"
+import { authenticate } from "../middlewares/auth.js"
 
 router.post("/update-user",authenticate,updateUser)
 router.get("/users",authenticate,getUsers)

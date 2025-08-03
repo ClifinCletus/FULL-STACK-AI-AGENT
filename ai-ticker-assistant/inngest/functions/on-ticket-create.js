@@ -1,9 +1,9 @@
-import {inngest} from "../client"
+import {inngest} from "../client.js"
 import Ticket from "../../models/ticket-model.js"
 import User from "../../models/user-model.js"
 import { NonRetriableError } from "inngest"
 import analyzeTicket from "../../utils/taking-ticket-to-aiagent.js"
-import { sendMail } from "../../utils/nodemaile.js"
+import { sendMail } from "../../utils/nodemailer.js"
 
 
 export const onTicketCreated = inngest.createFunction(

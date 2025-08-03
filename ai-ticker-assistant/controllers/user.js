@@ -1,51 +1,123 @@
 import jwt from "jsonwebtoken";
 import User from "../models/user-model.js";
-import { inngest } from "../inngest";
+import { inngest } from "../inngest/client.js";
 import { doHash, doHashValidation } from "../utils/hashing.js";
 import {
   signupSchema,
   loginSchema,
   updateUserSchema,
-} from "../utils/validations/userValidation.js";
+} from "../validators/validator.js";
 
 export const signup = async (req, res) => {
-  const {
-    email,
-    password,
-    skills: [],
-  } = req.body;
+  if (!req.body) {
+    return res.status(400).json({ error: "Request body is missing" });
+  }
+
+  console.log("REQ.BODY ===>", req.body);
+  const { email, password, skills = [] } = req.body;
+
+  // Basic validation
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
+
+  if (password.length < 6) {
+    return res
+      .status(400)
+      .json({ error: "Password must be at least 6 characters long" });
+  }
 
   try {
-    const { error } = signupSchema.validate({email,password,skills:[]});
-    if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({ error: "Email already in use" });
     }
 
-    const hashedPassword = doHash(password, 10);
-    const user = await User.create({ email, password: hashedPassword, skills });
+    console.log("Hashing password...");
+    const hashedPassword = await doHash(password, 10);
 
-    //fire the inngest event
-    /* we can do fire the inngest events as per our requirement. we can fire it an make it run at the same time go with other operations
-       or can do as wair for the event to be executed and after its execution, make other operations execute(await), all depends on the usecase*/
-
-    await inngest.send({
-      //calling the inngest event named user/signup (in the on-signup.js) and pass the data used there
-      name: "user/signup",
-      data: {
-        email,
-      },
+    console.log("Creating user...");
+    console.log("Before creating user:", {
+      email,
+      password: hashedPassword,
+      skills,
     });
+
+    const user = await User.create({
+      email,
+      password: hashedPassword,
+      skills,
+    });
+
+    console.log("User created successfully");
+
+    // Fire the inngest event
+    try {
+      await inngest.send({
+        name: "user/signup",
+        data: {
+          email,
+        },
+      });
+      console.log("Inngest event sent successfully");
+    } catch (inngestError) {
+      console.error("Inngest event failed:", inngestError);
+      // Don't fail the signup if inngest fails
+    }
+
+    // Generate JWT token
     const token = jwt.sign(
       {
-        _id: user._id,
+        id: user.id, //made it as id from _id
         role: user.role,
       },
-      process.env.JWT_SECRET
+      process.env.JWT_SECRET,
+      { expiresIn: "14d" }
     );
 
-    res.json({ token });
+    console.log("Token generated successfully");
+
+    // Prepare user object for response
+    const userObj = {
+      id: user._id,
+      email: user.email,
+      skills: user.skills,
+      role: user.role,
+    };
+
+    // Send success response
+    res.status(201).json({
+      message: "User created successfully",
+      token,
+      user: userObj,
+    });
   } catch (error) {
-    res.status(500).json({ error: "signup failed", details: error.message });
+    console.error("Error during user creation:", error);
+
+    // Handle specific MongoDB errors
+    if (error.code === 11000) {
+      return res.status(409).json({
+        error: "Email already exists",
+      });
+    }
+
+    // Handle validation errors
+    if (error.name === "ValidationError") {
+      const validationErrors = Object.values(error.errors).map(
+        (err) => err.message
+      );
+      return res.status(400).json({
+        error: "Validation failed",
+        details: validationErrors,
+      });
+    }
+
+    // Generic error response
+    res.status(500).json({
+      error: "Internal server error",
+      message: "Signup failed. Please try again later.",
+    });
   }
 };
 
@@ -53,12 +125,10 @@ export const login = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-
-    const { error } = loginSchema.validate({email,password});
+    const { error } = loginSchema.validate({ email, password });
     if (error) {
       return res.status(400).json({ error: error.details[0].message });
     }
-    
 
     const user = await User.findOne({ email }).select("+password");
     if (!user)
@@ -78,7 +148,15 @@ export const login = async (req, res) => {
       process.env.JWT_SECRET
     );
 
-    res.json({ token });
+    // Prepare user object for response
+    const userObj = {
+      id: user._id,
+      email: user.email,
+      skills: user.skills,
+      role: user.role,
+    };
+
+    res.json({ token, user: userObj });
   } catch (error) {
     res.status(500).json({ error: "Login failed", details: error.message });
   }
@@ -106,11 +184,10 @@ export const updateUser = async (req, res) => {
   const { skills = [], role, email } = req.body;
 
   try {
-    const { error } = updateUserSchema.validate({email,role,skills});
+    const { error } = updateUserSchema.validate({ email, role, skills });
     if (error) {
       return res.status(400).json({ error: error.details[0].message });
     }
-    
 
     if (req.user?.role !== "admin") {
       return res.status(403).json({ error: "Forbidden" });
