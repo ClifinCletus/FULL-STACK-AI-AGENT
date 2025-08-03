@@ -21,6 +21,10 @@ export default function TicketDetailsPage() {
           }
         );
         const data = await res.json();
+        console.log(
+          "data received from the db on frontend:",
+          JSON.stringify(data, null, 2)
+        );
         if (res.ok) {
           setTicket(data.ticket);
         } else {

@@ -30,12 +30,14 @@ export const createTicket = async (req, res) => {
       });
     }
 
-    console.log("Using user ID:", userId);
+    // Convert to string for consistency
+    const userIdString = userId.toString();
+    console.log("Using user ID:", userIdString);
 
     const newTicket = await Ticket.create({
       title,
       description,
-      createdBy: userId, //make it to .toString()
+      createdBy: userIdString, //make it to .toString()
     });
 
     console.log("Ticket created:", newTicket);
@@ -43,12 +45,12 @@ export const createTicket = async (req, res) => {
     // Trigger the inngest function with safe user ID access
     try {
       await inngest.send({
-        name: "/ticket/created",
+        name: "ticket/created",
         data: {
           ticketId: newTicket._id.toString(),
           title,
           description,
-          createdBy: userId.toString(),
+          createdBy: userIdString,
         },
       });
       console.log("Inngest event sent successfully");
@@ -117,11 +119,11 @@ export const getTicket = async (req, res) => {
       ]);
     } else {
       //if user,can only grab my ticket
+      // If user, can only grab their own ticket but with ALL fields
       ticket = await Ticket.findOne({
-        //grab the ticket created by that user and the id of the ticket
         createdBy: user._id,
-        _id: req.params.is,
-      }).select("title description status createdAt");
+        _id: req.params.id,
+      }).populate("assignedTo", ["email", "_id"]);
     }
 
     if (!ticket) {

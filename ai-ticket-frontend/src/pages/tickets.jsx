@@ -5,6 +5,7 @@ export default function Tickets() {
   const [form, setForm] = useState({ title: "", description: "" });
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [userDetails, setUserDetails] = useState(null);
 
   const token = localStorage.getItem("token"); //jwt token(stored in local storage)
 
@@ -27,8 +28,22 @@ export default function Tickets() {
     }
   };
 
+  const fetchUserDetails = async () => {
+    try {
+      const details = localStorage.getItem("user");
+      if (details) {
+        const parsedDetails = JSON.parse(details);
+        setUserDetails(parsedDetails); // Use setState
+        console.log("User details:", parsedDetails);
+      }
+    } catch (err) {
+      console.error("Failed to parse user details:", err);
+    }
+  };
+
   useEffect(() => {
     fetchTickets();
+    fetchUserDetails();
   }, []);
 
   const handleChange = (e) => {
@@ -66,31 +81,40 @@ export default function Tickets() {
 
   return (
     <div className="p-4 max-w-3xl mx-auto">
-      <h2 className="text-2xl font-bold mb-4">Create Ticket</h2>
+      {userDetails?.role !== "admin" && (
+        <>
+          <h2 className="text-2xl font-bold mb-4">Create Ticket</h2>
+          <form onSubmit={handleSubmit} className="space-y-3 mb-8">
+            <input
+              name="title"
+              value={form.title}
+              onChange={handleChange}
+              placeholder="Ticket Title"
+              className="input input-bordered w-full"
+              required
+            />
+            <textarea
+              name="description"
+              value={form.description}
+              onChange={handleChange}
+              placeholder="Ticket Description"
+              className="textarea textarea-bordered w-full"
+              required
+            ></textarea>
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? "Submitting..." : "Submit Ticket"}
+            </button>
+          </form>
+        </>
+      )}
 
-      <form onSubmit={handleSubmit} className="space-y-3 mb-8">
-        <input
-          name="title"
-          value={form.title}
-          onChange={handleChange}
-          placeholder="Ticket Title"
-          className="input input-bordered w-full"
-          required
-        />
-        <textarea
-          name="description"
-          value={form.description}
-          onChange={handleChange}
-          placeholder="Ticket Description"
-          className="textarea textarea-bordered w-full"
-          required
-        ></textarea>
-        <button className="btn btn-primary" type="submit" disabled={loading}>
-          {loading ? "Submitting..." : "Submit Ticket"}
-        </button>
-      </form>
-
-      <h2 className="text-xl font-semibold mb-2">All Tickets</h2>
+      <h2 className="text-xl font-semibold mb-6">
+        All Tickets created by Users
+      </h2>
       <div className="space-y-3">
         {tickets.map((ticket) => (
           <Link
